@@ -59,3 +59,4 @@ cd FPV-ONLINE
 ## 🐞 Known Issues
 - Sometimes user need to reload page cuple of times to start simulator
 - Physics is not good actualy
+- Radiomaster only controller support
