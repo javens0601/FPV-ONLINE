@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!DOCTYPE html>
-<html lang="ua">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -33,6 +33,19 @@
 <body>
     <canvas id="threeCanvas"></canvas>
     <canvas id="interface"></canvas>
+    <div id="map-switcher" aria-label="地图难度">
+        <button type="button" class="map-button active" data-map="easy">简单地图</button>
+        <button type="button" class="map-button" data-map="hard">困难地图</button>
+    </div>
+    <div id="race-hud" hidden>
+        <span id="gate-progress">穿门 0 / 8</span>
+        <span id="race-time">等待开始 — 推油门或拨动摇杆</span>
+    </div>
+    <div id="race-result" hidden>
+        <p class="result-title">赛道完成！</p>
+        <p id="final-time">00:00.00</p>
+        <button type="button" id="restart-race">再来一次</button>
+    </div>
     <div class="gamepad-info">
         <p id="info">未连接手柄 — 键盘操控：W/S 油门 · A/D 偏航 · ↑/↓ 俯仰 · ←/→ 横滚</p>
         <canvas id="canvas" width="300" height="150"></canvas>

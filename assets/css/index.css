@@ -37,3 +37,97 @@ body {
     pointer-events: none;
     z-index: 10;
 }
+
+#map-switcher {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 20;
+}
+
+.map-button {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: #ddd;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+.map-button:hover {
+    border-color: #fff;
+}
+
+.map-button.active {
+    color: #0f0;
+    border-color: #0f0;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+#race-hud {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 28px;
+    padding: 8px 18px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 20;
+}
+
+#race-hud[hidden] {
+    display: none;
+}
+
+#gate-progress {
+    color: #0f0;
+}
+
+#race-result {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    z-index: 30;
+}
+
+#race-result[hidden] {
+    display: none;
+}
+
+.result-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0f0;
+}
+
+#final-time {
+    font-size: 48px;
+    font-weight: 700;
+}
+
+#restart-race {
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 10px 22px;
+    color: #0f0;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #0f0;
+    cursor: pointer;
+}
