@@ -180,6 +180,153 @@ function animate() {
     drawHUD();
 }
 
+const droneRadius = 0.5;
+const worldUp = new THREE.Vector3(0, 1, 0);
+
+function resolveMapCollisions() {
+    for (const box of currentMap.obstacles) {
+        resolveAABBCollision(box);
+    }
+    for (const gate of currentMap.gates) {
+        resolveGateCollision(gate);
+    }
+}
+
+function resolveAABBCollision(box) {
+    const position = cameraTarget.position;
+    const closest = new THREE.Vector3(
+        THREE.MathUtils.clamp(position.x, box.min.x, box.max.x),
+        THREE.MathUtils.clamp(position.y, box.min.y, box.max.y),
+        THREE.MathUtils.clamp(position.z, box.min.z, box.max.z)
+    );
+    const delta = position.clone().sub(closest);
+    const distance = delta.length();
+
+    if (distance > droneRadius) return;
+
+    let normal;
+    let depth;
+    if (distance > 1e-6) {
+        normal = delta.divideScalar(distance);
+        depth = droneRadius - distance;
+    } else {
+        const penXMin = position.x - box.min.x;
+        const penXMax = box.max.x - position.x;
+        const penYMin = position.y - box.min.y;
+        const penYMax = box.max.y - position.y;
+        const penZMin = position.z - box.min.z;
+        const penZMax = box.max.z - position.z;
+        const smallest = Math.min(penXMin, penXMax, penYMin, penYMax, penZMin, penZMax);
+
+        if (smallest === penXMin) normal = new THREE.Vector3(-1, 0, 0);
+        else if (smallest === penXMax) normal = new THREE.Vector3(1, 0, 0);
+        else if (smallest === penYMin) normal = new THREE.Vector3(0, -1, 0);
+        else if (smallest === penYMax) normal = new THREE.Vector3(0, 1, 0);
+        else if (smallest === penZMin) normal = new THREE.Vector3(0, 0, -1);
+        else normal = new THREE.Vector3(0, 0, 1);
+
+        depth = smallest + droneRadius;
+    }
+
+    applyBounce(normal, depth);
+}
+
+function resolveGateCollision(gate) {
+    if (gate.type === 'square') {
+        const halfDepth = 0.25;
+        const inner = 3;
+        const outer = 3.25;
+        collideLocalBox(gate, -outer, outer, inner, outer, halfDepth);
+        collideLocalBox(gate, -outer, outer, -outer, -inner, halfDepth);
+        collideLocalBox(gate, -outer, -inner, -inner, inner, halfDepth);
+        collideLocalBox(gate, inner, outer, -inner, inner, halfDepth);
+        return;
+    }
+
+    const offset = cameraTarget.position.clone().sub(gate.center);
+    const lateral = offset.dot(gate.lateral);
+    const vertical = offset.y;
+    const along = offset.dot(gate.normal);
+    const radial = Math.hypot(lateral, vertical);
+    const ringRadius = 3;
+    const tubeRadius = 0.3;
+    const clearance = tubeRadius + droneRadius;
+
+    if (Math.abs(radial - ringRadius) > clearance || Math.abs(along) > clearance) {
+        return;
+    }
+
+    const radialX = radial > 1e-6 ? lateral / radial : 0;
+    const radialY = radial > 1e-6 ? vertical / radial : 1;
+    const normal = gate.lateral.clone()
+        .multiplyScalar(radialX)
+        .addScaledVector(worldUp, radialY);
+    const depth = clearance - Math.abs(radial - ringRadius);
+    applyBounce(normal, depth);
+}
+
+function collideLocalBox(gate, minX, maxX, minY, maxY, halfDepth) {
+    if (gate.center.y + minY < 0) return;
+
+    const offset = cameraTarget.position.clone().sub(gate.center);
+    const localX = offset.dot(gate.lateral);
+    const localY = offset.y;
+    const localZ = offset.dot(gate.normal);
+
+    const closestX = THREE.MathUtils.clamp(localX, minX, maxX);
+    const closestY = THREE.MathUtils.clamp(localY, minY, maxY);
+    const closestZ = THREE.MathUtils.clamp(localZ, -halfDepth, halfDepth);
+
+    const dx = localX - closestX;
+    const dy = localY - closestY;
+    const dz = localZ - closestZ;
+    const distanceSq = dx * dx + dy * dy + dz * dz;
+
+    if (distanceSq > droneRadius * droneRadius) return;
+
+    let localNormal;
+    let depth;
+    if (distanceSq > 1e-8) {
+        const distance = Math.sqrt(distanceSq);
+        localNormal = new THREE.Vector3(dx / distance, dy / distance, dz / distance);
+        depth = droneRadius - distance;
+    } else {
+        const penX = Math.min(localX - minX, maxX - localX);
+        const penY = Math.min(localY - minY, maxY - localY);
+        const penZ = Math.min(localZ + halfDepth, halfDepth - localZ);
+        const smallest = Math.min(penX, penY, penZ);
+
+        if (smallest === penX) {
+            localNormal = new THREE.Vector3(localX < (minX + maxX) / 2 ? -1 : 1, 0, 0);
+            depth = penX + droneRadius;
+        } else if (smallest === penY) {
+            localNormal = new THREE.Vector3(0, localY < (minY + maxY) / 2 ? -1 : 1, 0);
+            depth = penY + droneRadius;
+        } else {
+            localNormal = new THREE.Vector3(0, 0, localZ < 0 ? -1 : 1);
+            depth = penZ + droneRadius;
+        }
+    }
+
+    const worldNormal = gate.lateral.clone()
+        .multiplyScalar(localNormal.x)
+        .addScaledVector(worldUp, localNormal.y)
+        .addScaledVector(gate.normal, localNormal.z);
+    applyBounce(worldNormal, depth);
+}
+
+function applyBounce(normal, depth) {
+    cameraTarget.position.addScaledVector(normal, depth + 0.001);
+
+    const normalSpeed = velocity.dot(normal);
+    if (normalSpeed < 0) {
+        velocity.addScaledVector(normal, -normalSpeed * 1.35);
+    }
+
+    const tangent = velocity.clone().addScaledVector(normal, -velocity.dot(normal));
+    velocity.addScaledVector(tangent, -0.3);
+}
+
 function updateFlight() {
     const gp = gamepadConnected ? navigator.getGamepads()[0] : null;
 
@@ -217,6 +364,11 @@ function updateFlight() {
         throttle = keyboardThrottle * 0.1;
     }
 
+    if (raceActive && race.state === 'idle') {
+        velocity.set(0, 0, 0);
+        return;
+    }
+
     // Оновлення обертання
     rotation.y -= yawInput;
     rotation.x = THREE.MathUtils.clamp(rotation.x + pitchInput, -Math.PI / 2, Math.PI / 2);
@@ -232,6 +384,10 @@ function updateFlight() {
     velocity.add(acceleration);
     velocity.multiplyScalar(damping); // гальмування
     cameraTarget.position.add(velocity);
+
+    if (raceActive) {
+        resolveMapCollisions();
+    }
 
     // Колізія з землею
     if (cameraTarget.position.y < 0.1) {
