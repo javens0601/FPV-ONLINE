@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { buildEasyMap, buildHardMap, disposeGroup } from './maps.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa0a0a0);
@@ -50,20 +51,6 @@ const sun = new THREE.Mesh(sunGeo, sunMat);
 sun.position.set(50, 80, -100); // налаштуйте позицію за потреби
 scene.add(sun);
 
-// Орієнтири
-const boxGeometry = new THREE.BoxGeometry(1, 30, 1);
-const boxMaterial = new THREE.MeshPhongMaterial({ color: 0x00FF0080, wireframe: false });
-
-for (let i = 0; i < 10; i++) {
-    const cube = new THREE.Mesh(boxGeometry, boxMaterial);
-    cube.position.set(
-        Math.random() * 50 - 25,
-        0.5,
-        Math.random() * 50 - 25
-    );
-    scene.add(cube);
-}
-
 // Камера над сценою
 let angle = 0;
 const radius = 30;
@@ -112,6 +99,50 @@ let rotation = new THREE.Euler(0, 0, 0, 'YXZ');
 let cameraTarget = new THREE.Object3D();
 scene.add(cameraTarget);
 cameraTarget.add(camera);
+
+const mapButtons = document.querySelectorAll('.map-button');
+const raceHud = document.getElementById('race-hud');
+
+let currentMapName = 'easy';
+let currentMap = null;
+let currentMapGroup = null;
+let raceActive = false;
+
+function resetFlight() {
+    cameraTarget.position.copy(currentMap.spawn.position);
+    rotation.copy(currentMap.spawn.rotation);
+    cameraTarget.rotation.copy(rotation);
+    velocity.set(0, 0, 0);
+    keyboardThrottle = 0.5;
+}
+
+function loadMap(name) {
+    if (currentMapGroup) {
+        scene.remove(currentMapGroup);
+        disposeGroup(currentMapGroup);
+    }
+
+    currentMapName = name;
+    currentMap = name === 'hard' ? buildHardMap() : buildEasyMap();
+    currentMapGroup = currentMap.group;
+    scene.add(currentMapGroup);
+
+    resetFlight();
+    raceActive = name === 'hard';
+    raceHud.hidden = !raceActive;
+
+    mapButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.map === name);
+    });
+}
+
+mapButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        if (button.dataset.map !== currentMapName) {
+            loadMap(button.dataset.map);
+        }
+    });
+});
 
 function animate() {
     requestAnimationFrame(animate);
@@ -238,5 +269,6 @@ function drawHUD() {
     hudCtx.fillText("SPEED: " + Math.round(speed.toFixed(2) * 150) + " m/s", 20, 80);
 }
 
+loadMap('easy');
 animate();
 
