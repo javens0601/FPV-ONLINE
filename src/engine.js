@@ -77,13 +77,30 @@ window.addEventListener("gamepadconnected", (e) => {
     console.log("Геймпад підключено:", e.gamepad.id);
     gamepadConnected = true;
     info.style.display = "block";
-    animate();
 });
 
 window.addEventListener("gamepaddisconnected", (e) => {
     console.log("Геймпад відключено");
     gamepadConnected = false;
-    info.style.display = "none";
+    info.style.display = "block";
+});
+
+// Керування з клавіатури, якщо геймпад не підключений
+const keys = new Set();
+const controlledKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+let keyboardThrottle = 0.5;
+
+window.addEventListener("keydown", (e) => {
+    if (controlledKeys.includes(e.code)) e.preventDefault();
+    keys.add(e.code);
+});
+
+window.addEventListener("keyup", (e) => {
+    keys.delete(e.code);
+});
+
+window.addEventListener("blur", () => {
+    keys.clear();
 });
 
 // Початкові параметри FPV
@@ -98,46 +115,60 @@ cameraTarget.add(camera);
 
 function animate() {
     requestAnimationFrame(animate);
+    updateFlight();
+    renderer.render(scene, camera);
+    drawHUD();
+}
 
-    if (!gamepadConnected) return;
+function updateFlight() {
+    const gp = gamepadConnected ? navigator.getGamepads()[0] : null;
 
-    const gp = navigator.getGamepads()[0];
+    let yawInput = 0;
+    let pitchInput = 0;
+    let rollInput = 0;
+    let throttle = 0;
+
     if (gp) {
         const rx = gp.axes[0] || 0; // правий стік X
         const ry = gp.axes[1] || 0; // правий стік Y
         const ly = gp.axes[2] || 0; // лівий стік X
         const lx = gp.axes[3] || 0; // лівий стік Y
 
-        const yawSpeed = lx * 0.05;
-        const throttle = ((ly + 1) / 2) * 0.1; // [0, 1]
-        const pitch = -ry * 0.03;
-        const roll = rx * 0.03;
+        yawInput = lx * 0.05;
+        throttle = ((ly + 1) / 2) * 0.1; // [0, 1]
+        pitchInput = -ry * 0.03;
+        rollInput = rx * 0.03;
+    } else {
+        yawInput = ((keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0)) * 0.03;
+        pitchInput = ((keys.has("ArrowUp") ? 1 : 0) - (keys.has("ArrowDown") ? 1 : 0)) * 0.02;
+        rollInput = ((keys.has("ArrowRight") ? 1 : 0) - (keys.has("ArrowLeft") ? 1 : 0)) * 0.02;
 
-        // Оновлення обертання
-        rotation.y -= yawSpeed;
-        rotation.x = THREE.MathUtils.clamp(rotation.x + pitch, -Math.PI / 2, Math.PI / 2);
-        rotation.z = THREE.MathUtils.clamp(rotation.z - roll, -Math.PI / 2, Math.PI / 2);
-        cameraTarget.rotation.copy(rotation);
-
-        // Гравітація та рух
-        acceleration.set(0, gravity, 0); // вниз
-        const forward = new THREE.Vector3(0, 0, -1).applyEuler(rotation).multiplyScalar(throttle * 0.1);
-        acceleration.add(forward);
-
-        // Оновлюємо швидкість та позицію
-        velocity.add(acceleration);
-        velocity.multiplyScalar(damping); // гальмування
-        cameraTarget.position.add(velocity);
-
-        // Колізія з землею
-        if (cameraTarget.position.y < 0.1) {
-            cameraTarget.position.y = 0.1;
-            velocity.y = Math.max(0, velocity.y); // не падати вниз
-        }
+        const throttleStep = ((keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0)) * 0.01;
+        keyboardThrottle = THREE.MathUtils.clamp(keyboardThrottle + throttleStep, 0, 1);
+        throttle = keyboardThrottle * 0.1;
     }
 
-    renderer.render(scene, camera);
-    drawHUD();
+    // Оновлення обертання
+    rotation.y -= yawInput;
+    rotation.x = THREE.MathUtils.clamp(rotation.x + pitchInput, -Math.PI / 2, Math.PI / 2);
+    rotation.z = THREE.MathUtils.clamp(rotation.z - rollInput, -Math.PI / 2, Math.PI / 2);
+    cameraTarget.rotation.copy(rotation);
+
+    // Гравітація та рух
+    acceleration.set(0, gravity, 0); // вниз
+    const forward = new THREE.Vector3(0, 0, -1).applyEuler(rotation).multiplyScalar(throttle * 0.1);
+    acceleration.add(forward);
+
+    // Оновлюємо швидкість та позицію
+    velocity.add(acceleration);
+    velocity.multiplyScalar(damping); // гальмування
+    cameraTarget.position.add(velocity);
+
+    // Колізія з землею
+    if (cameraTarget.position.y < 0.1) {
+        cameraTarget.position.y = 0.1;
+        velocity.y = Math.max(0, velocity.y); // не падати вниз
+    }
 }
 
 
@@ -206,4 +237,6 @@ function drawHUD() {
     const speed = velocity.length();
     hudCtx.fillText("SPEED: " + Math.round(speed.toFixed(2) * 150) + " m/s", 20, 80);
 }
+
+animate();
 

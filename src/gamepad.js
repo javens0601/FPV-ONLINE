@@ -21,7 +21,7 @@ window.addEventListener("gamepadconnected", (e) => {
 window.addEventListener("gamepaddisconnected", (e) => {
     console.log("Gamepad disconnected");
     gamepadIndex = null;
-    info.textContent = "Геймпад відключено.";
+    info.textContent = "手柄已断开 — 键盘操控：W/S 油门 · A/D 偏航 · ↑/↓ 俯仰 · ←/→ 横滚";
     clearCanvas();
 });
 
