@@ -22,8 +22,8 @@ const BOX_OBSTACLES = [
 ];
 
 const PILLARS = [
-    [-3, 10, 16],
-    [3, 12, 12],
+    [-6, 10, 16],
+    [6, 12, 12],
     [-14, 9, 8],
     [12, 11, 4],
     [-2, 13, -2],
@@ -131,7 +131,7 @@ function createGate(definition, index, parent) {
     }
 
     const numberSprite = createNumberSprite(index + 1);
-    numberSprite.position.set(0, 5.8, 0);
+    numberSprite.position.set(0, 4.2, 0);
     gateGroup.add(numberSprite);
     parent.add(gateGroup);
 
@@ -172,7 +172,7 @@ function createNumberSprite(number) {
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(3, 3, 1);
+    sprite.scale.set(1.6, 1.6, 1);
     return sprite;
 }
 

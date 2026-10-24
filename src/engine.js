@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildEasyMap, buildHardMap, disposeGroup } from './maps.js';
+import { Race } from './race.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa0a0a0);
@@ -12,6 +13,9 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(5, 10, 7.5);
 scene.add(light);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+scene.add(ambientLight);
 
 // Земля як зелена шахматна дошка
 // Створення canvas для генерації текстури
@@ -75,11 +79,15 @@ window.addEventListener("gamepaddisconnected", (e) => {
 // Керування з клавіатури, якщо геймпад не підключений
 const keys = new Set();
 const controlledKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+const flightKeys = ["KeyW", "KeyA", "KeyS", "KeyD", ...controlledKeys];
 let keyboardThrottle = 0.5;
 
 window.addEventListener("keydown", (e) => {
     if (controlledKeys.includes(e.code)) e.preventDefault();
     keys.add(e.code);
+    if (raceActive && flightKeys.includes(e.code)) {
+        race.noteInput();
+    }
 });
 
 window.addEventListener("keyup", (e) => {
@@ -102,11 +110,23 @@ cameraTarget.add(camera);
 
 const mapButtons = document.querySelectorAll('.map-button');
 const raceHud = document.getElementById('race-hud');
+const race = new Race({
+    gateProgress: document.getElementById('gate-progress'),
+    timeDisplay: document.getElementById('race-time'),
+    resultPanel: document.getElementById('race-result'),
+    finalTime: document.getElementById('final-time'),
+});
+
+document.getElementById('restart-race').addEventListener('click', () => {
+    resetFlight();
+    race.reset();
+});
 
 let currentMapName = 'easy';
 let currentMap = null;
 let currentMapGroup = null;
 let raceActive = false;
+let gamepadAxisBaseline = null;
 
 function resetFlight() {
     cameraTarget.position.copy(currentMap.spawn.position);
@@ -114,6 +134,7 @@ function resetFlight() {
     cameraTarget.rotation.copy(rotation);
     velocity.set(0, 0, 0);
     keyboardThrottle = 0.5;
+    gamepadAxisBaseline = null;
 }
 
 function loadMap(name) {
@@ -130,6 +151,11 @@ function loadMap(name) {
     resetFlight();
     raceActive = name === 'hard';
     raceHud.hidden = !raceActive;
+    if (raceActive) {
+        race.load(currentMap.gates);
+    } else {
+        race.unload();
+    }
 
     mapButtons.forEach((button) => {
         button.classList.toggle('active', button.dataset.map === name);
@@ -147,6 +173,9 @@ mapButtons.forEach((button) => {
 function animate() {
     requestAnimationFrame(animate);
     updateFlight();
+    if (raceActive) {
+        race.update(cameraTarget.position);
+    }
     renderer.render(scene, camera);
     drawHUD();
 }
@@ -160,6 +189,15 @@ function updateFlight() {
     let throttle = 0;
 
     if (gp) {
+        if (!gamepadAxisBaseline) {
+            gamepadAxisBaseline = gp.axes.slice();
+        } else if (raceActive && race.state === 'idle') {
+            const moved = gp.axes.some((value, index) =>
+                Math.abs(value - (gamepadAxisBaseline[index] || 0)) > 0.1
+            );
+            if (moved) race.noteInput();
+        }
+
         const rx = gp.axes[0] || 0; // правий стік X
         const ry = gp.axes[1] || 0; // правий стік Y
         const ly = gp.axes[2] || 0; // лівий стік X
