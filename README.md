@@ -48,13 +48,17 @@
 
 ---
 
-## 📦 Installation (for local dev)
+## 📦 Run locally
+
+The simulator uses ES modules, so it must be served over HTTP — opening `index.html` directly from disk won't work.
 
 ```bash
-git clone https://github.com/vvriter/FPV-ONLINE.git
+git clone https://github.com/javens0601/FPV-ONLINE.git
 cd FPV-ONLINE
-# Open index.html in browser or serve with local web server
+python3 -m http.server 8765
 ```
+
+Then open **http://localhost:8765** in Chrome or Edge.
 
 ## 🐞 Known Issues
 - Sometimes user need to reload page cuple of times to start simulator
